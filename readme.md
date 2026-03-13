@@ -10,7 +10,7 @@ Project ini di-generate menggunakan AI Assistant (GitHub Copilot)
 
 ### Tahap 1: Setup Struktur & Domain
 
-_Di tahap awal, saya minta AI buatin kerangka dasar dan kontrak interface-nya dulu biar struktur Clean Architecture-nya kebentuk._
+_Di tahap awal, saya minta AI buatin kerangka dasar dan interface-nya dulu biar struktur Clean Architecture-nya kebentuk._
 
 > **Prompt:**
 > Buatin kerangka project Golang pake Clean Architecture buat konek ke Redis. Bikin folder `domain`, `repository/redis`, sama `usecase`.
@@ -21,7 +21,7 @@ _Di tahap awal, saya minta AI buatin kerangka dasar dan kontrak interface-nya du
 
 ### Tahap 2: Implementasi Repository (Redis)
 
-_Setelah kerangka beres, saya suruh AI ngisi kodingan aslinya yang langsung nembak ke database Redis._
+_Setelah kerangka beres, saya suruh AI ngisi kodingan aslinya yang langsung ke database Redis._
 
 > **Prompt:**
 > Oke bagus. Sekarang isi folder `repository/redis`-nya. Tolong pake library `github.com/redis/go-redis/v9` ya.
@@ -29,7 +29,7 @@ _Setelah kerangka beres, saya suruh AI ngisi kodingan aslinya yang langsung nemb
 
 ### Tahap 3: Usecase & Unit Testing
 
-_Nah, ini bagian krusial karena dosen minta mocking-nya dibikin manual, jadi saya harus wanti-wanti AI-nya biar gak pake tools otomatis._
+_Nah, ini bagian penting agar dibikin manual, jadi AI harus dijelaskan agar tidak memakai tools otomatis._
 
 > **Prompt:**
 > Lanjut bikin file `user_usecase.go` yang manggil UserRepository.
