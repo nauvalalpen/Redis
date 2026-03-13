@@ -37,7 +37,8 @@ _Nah, ini bagian penting agar dibikin manual, jadi AI harus dijelaskan agar tida
 
 ### Tahap 4: (Main.go)
 
-_Terakhir, minta AI buatin script buat ngetest semua fungsinya jalan atau nggak di terminal._
+_Terakhir, minta AI buatin script buat ngetest semua fungsinya jalan atau
+di terminal._
 
 > **Prompt:**
 > "Terakhir, buatin `main.go` di folder root untuk ngetest semuanya.
