@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniKatalog — Sistem Katalog Produk dengan Redis</title>
+  <meta name="description" content="Aplikasi web katalog produk yang mendemonstrasikan penggunaan Redis untuk session management, rate limiting, dan caching." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon">🗂️</span>
+      <span class="brand-name">MiniKatalog</span>
+      <span class="brand-badge">Redis Demo</span>
+    </div>
+    <div class="nav-right">
+      <div id="userInfo" class="user-info hidden">
+        <span class="user-avatar">👤</span>
+        <span id="usernameDisplay"></span>
+        <button id="logoutBtn" class="btn btn-sm btn-outline">Logout</button>
+      </div>
+      <div id="guestInfo" class="guest-info">
+        <button id="showLoginBtn" class="btn btn-sm btn-primary">Login</button>
+        <button id="showRegisterBtn" class="btn btn-sm btn-outline">Register</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========== REDIS INFO BANNER ========== -->
+  <div class="redis-banner">
+    <div class="redis-banner-inner">
+      <div class="redis-feature">
+        <span class="rf-icon">🔐</span>
+        <span class="rf-label">Session Redis</span>
+        <span id="sessionIndicator" class="rf-status inactive">Tidak Aktif</span>
+      </div>
+      <div class="redis-feature">
+        <span class="rf-icon">🛡️</span>
+        <span class="rf-label">Rate Limit Login</span>
+        <span class="rf-status active">Aktif (5x/menit)</span>
+      </div>
+      <div class="redis-feature">
+        <span class="rf-icon">⚡</span>
+        <span class="rf-label">Cache Status</span>
+        <span id="cacheIndicator" class="rf-status inactive">—</span>
+      </div>
+      <div class="redis-feature">
+        <span class="rf-icon">⏱️</span>
+        <span class="rf-label">Response Time</span>
+        <span id="responseTimeDisplay" class="rf-status">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="container">
+
+    <!-- ========== AUTH MODALS ========== -->
+    <div id="loginModal" class="modal hidden">
+      <div class="modal-overlay" id="loginOverlay"></div>
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>🔑 Login</h2>
+          <button class="modal-close" id="closeLoginModal">&times;</button>
+        </div>
+        <div class="rate-limit-warning hidden" id="rateLimitInfo">
+          ⚠️ Rate Limiting aktif! Percobaan login dibatasi oleh Redis.
+        </div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" placeholder="Masukkan username" required autocomplete="username"/>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Masukkan password" required autocomplete="current-password"/>
+          </div>
+          <div id="loginError" class="alert alert-error hidden"></div>
+          <button type="submit" class="btn btn-primary btn-full" id="loginSubmitBtn">Login</button>
+        </form>
+        <p class="modal-footer-text">Belum punya akun? <a href="#" id="switchToRegister">Daftar di sini</a></p>
+      </div>
+    </div>
+
+    <div id="registerModal" class="modal hidden">
+      <div class="modal-overlay" id="registerOverlay"></div>
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>📝 Register</h2>
+          <button class="modal-close" id="closeRegisterModal">&times;</button>
+        </div>
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="regUsername">Username</label>
+            <input type="text" id="regUsername" placeholder="Pilih username" required autocomplete="username"/>
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" placeholder="Min. 6 karakter" required autocomplete="new-password"/>
+          </div>
+          <div id="registerError" class="alert alert-error hidden"></div>
+          <div id="registerSuccess" class="alert alert-success hidden"></div>
+          <button type="submit" class="btn btn-primary btn-full">Daftar Sekarang</button>
+        </form>
+        <p class="modal-footer-text">Sudah punya akun? <a href="#" id="switchToLogin">Login di sini</a></p>
+      </div>
+    </div>
+
+    <!-- ========== PRODUCT SECTION ========== -->
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h1 class="section-title">Katalog Produk</h1>
+          <p class="section-subtitle">Data di-cache oleh Redis untuk performa optimal</p>
+        </div>
+        <div class="section-actions">
+          <button id="refreshBtn" class="btn btn-outline" title="Refresh data (akan cache miss jika cache expired)">
+            🔄 Refresh
+          </button>
+          <button id="clearCacheNote" class="btn btn-outline btn-sm" title="Cache akan otomatis di-invalidate saat ada perubahan data">
+            🗑️ Info Cache
+          </button>
+          <button id="addProductBtn" class="btn btn-primary hidden">
+            + Tambah Produk
+          </button>
+        </div>
+      </div>
+
+      <!-- Cache Demo Panel -->
+      <div class="cache-demo-panel">
+        <div class="cache-demo-title">⚡ Demo Cache-Aside Pattern Redis</div>
+        <div class="cache-demo-steps">
+          <div class="cache-step" id="step1">
+            <span class="step-num">1</span>
+            <span>Klik Refresh (pertama = CACHE MISS → ambil dari MongoDB)</span>
+          </div>
+          <div class="cache-step" id="step2">
+            <span class="step-num">2</span>
+            <span>Klik Refresh lagi (kedua = CACHE HIT → ambil dari Redis, lebih cepat!)</span>
+          </div>
+          <div class="cache-step" id="step3">
+            <span class="step-num">3</span>
+            <span>Tambah/hapus produk → cache otomatis di-invalidate → klik Refresh lagi = CACHE MISS</span>
+          </div>
+        </div>
+        <div id="cacheHistory" class="cache-history"></div>
+      </div>
+
+      <!-- Add Product Form (hidden by default) -->
+      <div id="addProductForm" class="product-form hidden">
+        <h3 class="form-title">Tambah Produk Baru</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pName">Nama Produk *</label>
+            <input type="text" id="pName" placeholder="Contoh: Laptop Gaming ASUS" />
+          </div>
+          <div class="form-group">
+            <label for="pPrice">Harga (Rp) *</label>
+            <input type="number" id="pPrice" placeholder="Contoh: 15000000" min="0" />
+          </div>
+          <div class="form-group">
+            <label for="pCategory">Kategori</label>
+            <input type="text" id="pCategory" placeholder="Contoh: Elektronik" />
+          </div>
+          <div class="form-group">
+            <label for="pStock">Stok</label>
+            <input type="number" id="pStock" placeholder="Contoh: 50" min="0" />
+          </div>
+          <div class="form-group form-group-full">
+            <label for="pDesc">Deskripsi</label>
+            <textarea id="pDesc" placeholder="Deskripsi singkat produk..." rows="3"></textarea>
+          </div>
+        </div>
+        <div id="productFormError" class="alert alert-error hidden"></div>
+        <div class="form-actions">
+          <button id="cancelProductBtn" class="btn btn-outline">Batal</button>
+          <button id="submitProductBtn" class="btn btn-primary">Simpan Produk</button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div id="productLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Memuat produk...</p>
+      </div>
+      <div id="productEmpty" class="empty-state hidden">
+        <div class="empty-icon">📦</div>
+        <h3>Belum ada produk</h3>
+        <p>Login dan tambahkan produk pertama kamu!</p>
+      </div>
+      <div id="productGrid" class="product-grid hidden"></div>
+    </section>
+
+  </main>
+
+  <!-- ========== TOAST NOTIFICATION ========== -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="footer">
+    <p>MiniKatalog &mdash; UAS Topik Khusus | Redis + MongoDB + Go</p>
+    <p class="footer-sub">Session ▸ Rate Limiting ▸ Cache-Aside Pattern</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
